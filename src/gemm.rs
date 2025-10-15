@@ -287,7 +287,7 @@ pub unsafe fn add_8x4_kernel(
 #[cfg(target_arch = "aarch64")]
 #[inline]
 #[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc, clippy::too_many_arguments)]
-#[target_feature(enable = "neon,fma")]
+#[target_feature(enable = "neon")]
 pub unsafe fn add_8x4_kernel(
     k: usize,
     alpha: f64,

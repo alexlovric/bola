@@ -211,7 +211,7 @@ unsafe fn ger_kernel(m: usize, temp0: f64, temp1: f64, x: *const f64, a0: *mut f
 #[cfg(target_arch = "aarch64")]
 #[inline]
 #[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc)]
-#[target_feature(enable = "neon,fma")]
+#[target_feature(enable = "neon")]
 unsafe fn ger_kernel(m: usize, temp0: f64, temp1: f64, x: *const f64, a0: *mut f64, a1: *mut f64) -> usize {
     let temp_vec0 = vdupq_n_f64(temp0);
     let temp_vec1 = vdupq_n_f64(temp1);
