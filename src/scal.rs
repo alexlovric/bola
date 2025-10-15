@@ -6,7 +6,7 @@ use std::arch::x86_64::*;
 #[cfg(target_arch = "x86_64")]
 #[inline]
 #[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc)]
-#[target_feature(enable = "avx2,fma")]
+#[target_feature(enable = "avx2")]
 pub unsafe fn scal_kernel(m: usize, inv_diag: f64, col: *mut f64) -> usize {
     let inv_diag_vec = _mm256_set1_pd(inv_diag);
     let m_chunks = m / 4;

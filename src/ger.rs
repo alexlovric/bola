@@ -182,7 +182,7 @@ pub unsafe fn ger(m: usize, n: usize, alpha: f64, x: *const f64, y: *const f64, 
 #[cfg(target_arch = "x86_64")]
 #[inline]
 #[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc)]
-#[target_feature(enable = "avx2,fma")]
+#[target_feature(enable = "avx2")]
 unsafe fn ger_kernel(m: usize, temp0: f64, temp1: f64, x: *const f64, a0: *mut f64, a1: *mut f64) -> usize {
     let temp_vec0 = _mm256_set1_pd(temp0);
     let temp_vec1 = _mm256_set1_pd(temp1);

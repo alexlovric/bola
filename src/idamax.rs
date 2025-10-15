@@ -19,7 +19,7 @@ use std::arch::aarch64::*;
 #[cfg(target_arch = "x86_64")]
 #[inline]
 #[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc)]
-#[target_feature(enable = "avx2,fma")]
+#[target_feature(enable = "avx2")]
 pub unsafe fn idamax(n: usize, x: *const f64) -> usize {
     #[cfg(feature = "profiling")]
     let _timer = profiling::ScopedTimer::new("IDAMAX");
