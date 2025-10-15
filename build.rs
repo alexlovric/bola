@@ -15,8 +15,8 @@
 /// You can test this script by running `cargo build --verbose` in the terminal.
 fn main() {
     // for testing
-    println!("cargo:rustc-link-lib=static=openblas");
-    println!("cargo:rustc-link-search=native=/usr/lib/x86_64-linux-gnu"); // or your OpenBLAS path
+    // println!("cargo:rustc-link-lib=static=openblas");
+    // println!("cargo:rustc-link-search=native=/usr/lib/x86_64-linux-gnu"); // or your OpenBLAS path
 
     println!("cargo:rustc-check-cfg=cfg(has_fma)");
     println!("cargo:rustc-check-cfg=cfg(has_avx2)");
