@@ -4,9 +4,7 @@ use std::{ptr, slice};
 #[cfg(feature = "profiling")]
 use crate::profiling;
 
-const PARALLEL_THRESHOLD: usize = 256;  
-
-
+const PARALLEL_THRESHOLD: usize = 256;
 
 /// Performs a series of row interchanges on a matrix.
 ///

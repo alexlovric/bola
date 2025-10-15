@@ -55,13 +55,9 @@ pub unsafe fn potrf(uplo: char, n: usize, a: *mut f64, lda: usize) -> Result<(),
                 let a_1_jb = a.add((j + jb) * lda);
                 let a_j_jb = a.add(j + (j + jb) * lda);
 
-                gemm(
-                    'T', 'N', jb, n_rem, j, -1.0, a_1j, lda, a_1_jb, lda, 1.0, a_j_jb, lda,
-                );
+                gemm('T', 'N', jb, n_rem, j, -1.0, a_1j, lda, a_1_jb, lda, 1.0, a_j_jb, lda);
 
-                trsm(
-                    'L', 'U', 'T', 'N', jb, n_rem, 1.0, a_jj, lda, a_j_jb, lda,
-                );
+                trsm('L', 'U', 'T', 'N', jb, n_rem, 1.0, a_jj, lda, a_j_jb, lda);
             }
         }
     } else {
@@ -76,18 +72,14 @@ pub unsafe fn potrf(uplo: char, n: usize, a: *mut f64, lda: usize) -> Result<(),
 
             if j + jb < n {
                 let n_rem = n - j - jb;
-                
+
                 let a_jb0 = a.add(j + jb);
-                
+
                 let a_jbj = a.add(j + jb + j * lda);
 
-                gemm(
-                    'N', 'T', n_rem, jb, j, -1.0, a_jb0, lda, a_j0, lda, 1.0, a_jbj, lda,
-                );
+                gemm('N', 'T', n_rem, jb, j, -1.0, a_jb0, lda, a_j0, lda, 1.0, a_jbj, lda);
 
-                trsm(
-                    'R', 'L', 'T', 'N', n_rem, jb, 1.0, a_jj, lda, a_jbj, lda,
-                );
+                trsm('R', 'L', 'T', 'N', n_rem, jb, 1.0, a_jj, lda, a_jbj, lda);
             }
         }
     }

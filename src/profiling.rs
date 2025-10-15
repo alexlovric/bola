@@ -1,8 +1,8 @@
 use std::{
     collections::HashMap,
     sync::{
-        atomic::{AtomicU64, AtomicUsize, Ordering},
         Mutex, OnceLock,
+        atomic::{AtomicU64, AtomicUsize, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -68,10 +68,7 @@ pub fn reset_counters() {
 /// Prints a formatted report of all functions that were called.
 /// The function with the longest total duration is automatically used as the 100% baseline.
 pub fn print_profile(iterations: f64) {
-    println!(
-        "\n--- Function Call Profiling (Average over {} iterations) ---",
-        iterations
-    );
+    println!("\n--- Function Call Profiling (Average over {} iterations) ---", iterations);
     let profiler = profiler();
     let guard = profiler.lock().unwrap();
 

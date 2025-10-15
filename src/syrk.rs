@@ -1,9 +1,10 @@
 use std::cmp;
 
-#[cfg(feature = "profiling")]
-use crate::profiling;
 use crate::utilities::dot_product;
 use crate::{gemm::gemm, utilities::daxpy_update};
+
+#[cfg(feature = "profiling")]
+use crate::profiling;
 
 const NB: usize = 32; // A reasonable block size
 

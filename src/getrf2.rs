@@ -1,8 +1,8 @@
-use std::arch::x86_64::*;
 use std::{cmp, slice};
 
 use crate::ger::ger;
 use crate::idamax::idamax;
+use crate::scal::scal_kernel;
 use crate::{gemm::gemm, laswp::laswp, trsm::trsm};
 
 #[cfg(feature = "profiling")]
@@ -155,17 +155,12 @@ unsafe fn iterative_getrf2(m: usize, n: usize, a: *mut f64, lda: usize, ipiv: &m
 
                 let ajj = a_slice[j + j * lda];
                 let inv_ajj = 1.0 / ajj;
-                let inv_ajj_vec = _mm256_set1_pd(inv_ajj);
-
                 let m_rem = m - (j + 1);
-                let mut col_ptr = a.add(j + 1 + j * lda);
+                let col_ptr = a.add(j + 1 + j * lda);
 
-                let chunks = m_rem / 4;
-                for _ in 0..chunks {
-                    _mm256_storeu_pd(col_ptr, _mm256_mul_pd(_mm256_loadu_pd(col_ptr), inv_ajj_vec));
-                    col_ptr = col_ptr.add(4);
-                }
-                for i in (chunks * 4)..m_rem {
+                let processed = scal_kernel(m_rem, inv_ajj, col_ptr);
+
+                for i in processed..m_rem {
                     *a_slice.get_unchecked_mut(j + 1 + i + j * lda) *= inv_ajj;
                 }
             }

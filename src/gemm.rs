@@ -85,7 +85,6 @@ pub unsafe fn pack(trans: char, rows: usize, cols: usize, src: *const f64, ld_sr
 /// * `c`      - A pointer to the first element of matrix C.
 /// * `ldc`    - The leading dimension of matrix C.
 #[allow(unsafe_op_in_unsafe_fn, clippy::too_many_arguments, clippy::missing_safety_doc)]
-#[target_feature(enable = "avx2,fma")]
 pub unsafe fn gemm(
     transa: char,
     transb: char,
@@ -224,7 +223,6 @@ pub unsafe fn gemm(
     }
 }
 
-
 /// Performs an 8x4 micro-kernel matrix multiplication using AVX2 and FMA instructions.
 ///
 /// This function computes `C += alpha * A * B` for a small 8x4 sub-block of the
@@ -343,22 +341,10 @@ pub unsafe fn add_8x4_kernel(
     for j in 0..NR {
         let c_ptr = c.add(j * ldc);
 
-        vst1q_f64(
-            c_ptr,
-            vfmaq_f64(vld1q_f64(c_ptr), alpha_vec, c0[j]),
-        );
-        vst1q_f64(
-            c_ptr.add(2),
-            vfmaq_f64(vld1q_f64(c_ptr.add(2)), alpha_vec, c1[j]),
-        );
-        vst1q_f64(
-            c_ptr.add(4),
-            vfmaq_f64(vld1q_f64(c_ptr.add(4)), alpha_vec, c2[j]),
-        );
-        vst1q_f64(
-            c_ptr.add(6),
-            vfmaq_f64(vld1q_f64(c_ptr.add(6)), alpha_vec, c3[j]),
-        );
+        vst1q_f64(c_ptr, vfmaq_f64(vld1q_f64(c_ptr), alpha_vec, c0[j]));
+        vst1q_f64(c_ptr.add(2), vfmaq_f64(vld1q_f64(c_ptr.add(2)), alpha_vec, c1[j]));
+        vst1q_f64(c_ptr.add(4), vfmaq_f64(vld1q_f64(c_ptr.add(4)), alpha_vec, c2[j]));
+        vst1q_f64(c_ptr.add(6), vfmaq_f64(vld1q_f64(c_ptr.add(6)), alpha_vec, c3[j]));
     }
 }
 

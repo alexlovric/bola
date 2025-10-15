@@ -6,7 +6,6 @@ use matrixmultiply::dgemm as matrixmultiply_dgemm;
 use rand::prelude::*;
 use std::time::Duration;
 
-
 fn benchmark_gemm(c: &mut Criterion) {
     let mut group = c.benchmark_group("GEMM Comparison");
     group.measurement_time(Duration::from_secs(35));
@@ -83,7 +82,21 @@ fn benchmark_gemm(c: &mut Criterion) {
                 || c_init.clone(),
                 |mut c_copy| {
                     unsafe {
-                        gemm('N', 'N', m, n, k, 1.0, a.as_ptr(), lda, b.as_ptr(), ldb, 1.0, c_copy.as_mut_ptr(), ldc);
+                        gemm(
+                            'N',
+                            'N',
+                            m,
+                            n,
+                            k,
+                            1.0,
+                            a.as_ptr(),
+                            lda,
+                            b.as_ptr(),
+                            ldb,
+                            1.0,
+                            c_copy.as_mut_ptr(),
+                            ldc,
+                        );
                     }
                     // Verify the result against the golden copy.
                     // assert_approx_eq(&c_copy, &c_golden, 1e-9);

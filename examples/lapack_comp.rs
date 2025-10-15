@@ -6,15 +6,8 @@ use rayon::prelude::*;
 use std::time::Instant;
 
 use bola::{
-    gemm::gemm,
-    ger::ger,
-    getrf::getrf,
-    getrf2::getrf2,
-    laswp::laswp,
-    potrf::potrf,
-    potrf2::potrf2,
+    gemm::gemm, ger::ger, getrf::getrf, getrf2::getrf2, laswp::laswp, potrf::potrf, potrf2::potrf2, trsm::trsm,
     utilities::dot_product,
-    trsm::trsm,
 };
 
 #[cfg(feature = "profiling")]
