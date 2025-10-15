@@ -128,7 +128,6 @@ pub unsafe fn getrf2(m: usize, n: usize, a: *mut f64, lda: usize, ipiv: &mut [i3
 /// * `Ok(())` - If the factorization completed successfully.
 /// * `Err(String)`
 #[allow(unsafe_op_in_unsafe_fn)]
-#[target_feature(enable = "avx2,fma")]
 unsafe fn iterative_getrf2(m: usize, n: usize, a: *mut f64, lda: usize, ipiv: &mut [i32]) -> Result<(), String> {
     #[cfg(feature = "profiling")]
     let _timer = profiling::ScopedTimer::new("GETRF2_IT");

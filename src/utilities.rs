@@ -1,7 +1,5 @@
-use std::mem;
-
 #[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
+use std::{arch::x86_64::*, mem};
 
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::*;
