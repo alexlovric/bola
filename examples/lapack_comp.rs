@@ -1,3 +1,5 @@
+// Requires openblas linking to run
+
 #![allow(unused, dead_code)]
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use rayon::prelude::*;

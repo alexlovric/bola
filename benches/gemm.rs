@@ -1,3 +1,5 @@
+// Requires openblas linking to run
+
 use bola::gemm::gemm;
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use matrixmultiply::dgemm as matrixmultiply_dgemm;

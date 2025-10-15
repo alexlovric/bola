@@ -1,3 +1,5 @@
+// Requires openblas linking to run
+
 use bola::getrf::getrf;
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use rand::prelude::*;
