@@ -1,6 +1,6 @@
 # BOLA
 
-BOLA is a native Rust linear algebra backend inspired by BLAS/LAPACK. The purpose of this project is to provide a drop in replacement for many of BLAS/LAPACK functions with a tiny memory footprint, ideal for embedded systems.
+BOLA is a native Rust linear algebra backend inspired by BLAS/LAPACK. The purpose of this project is to provide a drop in replacement for many of BLAS/LAPACK functions with minimal dependency overhead and small binary size, ideal for embedded systems.
 
 ## Features
 
