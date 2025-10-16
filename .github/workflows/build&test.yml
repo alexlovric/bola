@@ -37,9 +37,14 @@ jobs:
         target: ${{ matrix.target }}
         toolchain: stable
 
-    - name: 🏗️ Build in release mode
-      run: cargo build --release --verbose --target ${{ matrix.target }}
+    - name: 🏗️ Build library and tests in release mode
+      run: cargo test --release --no-run --verbose --target ${{ matrix.target }}
 
+    - name: ⬆️ Upload target directory
+      uses: actions/upload-artifact@v4
+      with:
+        name: target-${{ matrix.os }}-${{ matrix.target }}
+        path: target
 
   test:
     name: Test on ${{ matrix.os }} (${{ matrix.target }})
@@ -68,5 +73,11 @@ jobs:
         target: ${{ matrix.target }}
         toolchain: stable
 
-    - name: 🧪 Run tests
-      run: cargo test --verbose --target ${{ matrix.target }}
+    - name: 📥 Download target directory
+      uses: actions/download-artifact@v4
+      with:
+        name: target-${{ matrix.os }}-${{ matrix.target }}
+        path: target
+
+    - name: 🧪 Run tests (without rebuilding)
+      run: cargo test --release --verbose --target ${{ matrix.target }}

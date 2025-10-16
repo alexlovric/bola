@@ -130,3 +130,36 @@ pub unsafe fn laswp(n: usize, a: &mut [f64], lda: usize, k1: i32, k2: i32, ipiv:
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_laswp_row_swaps() {
+        let n_cols_to_swap = 3;
+        let lda = 3;
+        let mut a = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
+
+        let ipiv = vec![3, 2];
+
+        let a_expected = vec![3.0, 2.0, 1.0, 6.0, 5.0, 4.0, 9.0, 8.0, 7.0];
+
+        unsafe {
+            laswp(n_cols_to_swap, &mut a, lda, 1, 2, &ipiv, 1);
+        }
+
+        assert_eq!(a.len(), a_expected.len(), "Slices have different lengths");
+        for (i, (val_a, val_b)) in a.iter().zip(a_expected.iter()).enumerate() {
+            assert!(
+                (val_a - val_b).abs() < 1e-8,
+                "Mismatch at index {}: evaluated[{}] = {}, expected[{}] = {}",
+                i,
+                i,
+                val_a,
+                i,
+                val_b
+            );
+        }
+    }
+}

@@ -35,7 +35,7 @@ fn main() -> Result<(), String> {
 
     let elapsed_time = elapsed_time / 10.;
 
-    println!("--- My getrf Result ---");
+    println!("--- Getrf Result ---");
     println!("L and U factors: {:.3?}", &my_a[my_a.len() - 10..]);
     println!("Pivots: {:?}", &my_ipiv[my_ipiv.len() - 10..]);
     println!("Elapsed time: {} ms", elapsed_time * 1000.);

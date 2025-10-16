@@ -38,3 +38,24 @@ pub unsafe fn scal_kernel(m: usize, inv_diag: f64, col: *mut f64) -> usize {
     }
     m_chunks * 2
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*; 
+
+    #[test]
+    fn test_scal_kernel_logic() {
+        let mut x = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let a = 2.0;
+        let expected = vec![2.0, 4.0, 6.0, 8.0, 10.0];
+
+        unsafe {
+            let processed = scal_kernel(x.len(), a, x.as_mut_ptr());
+            for i in processed..x.len() {
+                *x.get_unchecked_mut(i) *= a;
+            }
+        }
+
+        assert_eq!(x, expected);
+    }
+}

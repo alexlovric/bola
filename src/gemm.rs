@@ -388,3 +388,54 @@ pub unsafe fn add_scalar_kernel(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_gemm_matrix_multiplication() {
+        let m = 2;
+        let n = 2;
+        let k = 3;
+        let lda = 2;
+        let ldb = 3;
+        let ldc = 2;
+
+        let a = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let b = [7.0, 8.0, 9.0, 10.0, 11.0, 12.0];
+        let mut c = [0.0; 4];
+
+        let c_expected = [76.0, 100.0, 103.0, 136.0];
+
+        unsafe {
+            gemm(
+                'N',
+                'N',
+                m,
+                n,
+                k,
+                1.0,
+                a.as_ptr(),
+                lda,
+                b.as_ptr(),
+                ldb,
+                0.0,
+                c.as_mut_ptr(),
+                ldc,
+            );
+        }
+
+        assert_eq!(c.len(), c_expected.len(), "Slices have different lengths");
+        for (i, (val_a, val_b)) in c.iter().zip(c_expected.iter()).enumerate() {
+            assert!(
+                (val_a - val_b).abs() < 1e-8,
+                "Mismatch at index {}: evaluated[{}] = {}, expected[{}] = {}",
+                i,
+                i,
+                val_a,
+                i,
+                val_b
+            );
+        }
+    }
+}
