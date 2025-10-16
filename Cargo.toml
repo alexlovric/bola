@@ -2,6 +2,14 @@
 name = "bola"
 version = "0.1.0"
 edition = "2024"
+description = "A lightweight native rust linear algebra library."
+authors = ["Aleksander Lovric <alexlovric@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/alexlovric/bola"
+documentation = "https://docs.rs/bola"
+readme = "README.md"
+keywords = ["math", "linear-algebra", "lapack", "matrix"]
+categories = ["science", "mathematics", "simulation"]
 
 [lib]
 name = "bola"

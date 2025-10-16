@@ -7,9 +7,10 @@ BOLA is a native Rust linear algebra backend inspired by BLAS/LAPACK. The purpos
 * The library currently provides the following key functions:
 
     * GEMM: General matrix-matrix multiplication.
-    * TRSM: Triangular solve with multiple right-hand sides.
     * GETRF: LU factorisation of a general matrix.
     * POTRF: Cholesky factorisation of a symmetric positive-definite matrix.
+    * TRSM: Triangular solve with multiple right-hand sides.
+    * Other functions they depend on (LASWP, IDAMAX, SYRK, etc.)
 
 * SIMD Accelerated as well as Rayon parallelised.
 
