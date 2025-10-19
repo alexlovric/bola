@@ -110,4 +110,4 @@ jobs:
         toolchain: stable
         
     - name: 🚀 Run benchmarks
-      run: cargo bench --verbose --target ${{ matrix.target }} --bench=getrf
+      run: cargo bench --verbose --target ${{ matrix.target }} --bench=workflow_dep

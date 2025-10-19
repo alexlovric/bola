@@ -40,3 +40,7 @@ harness = false
 [[bench]]
 name = "gemm"
 harness = false
+
+[[bench]]
+name = "workflow_dep"
+harness = false
