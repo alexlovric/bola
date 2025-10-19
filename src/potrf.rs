@@ -72,9 +72,7 @@ pub unsafe fn potrf(uplo: char, n: usize, a: *mut f64, lda: usize) -> Result<(),
 
             if j + jb < n {
                 let n_rem = n - j - jb;
-
                 let a_jb0 = a.add(j + jb);
-
                 let a_jbj = a.add(j + jb + j * lda);
 
                 gemm('N', 'T', n_rem, jb, j, -1.0, a_jb0, lda, a_j0, lda, 1.0, a_jbj, lda);

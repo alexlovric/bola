@@ -18,7 +18,7 @@ use std::arch::aarch64::*;
 #[cfg(target_arch = "x86_64")]
 #[inline]
 #[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc)]
-#[target_feature(enable = "avx2")]
+#[target_feature(enable = "avx2,fma")]
 pub unsafe fn dot_product(n: usize, x: *const f64, incx: usize, y: *const f64, incy: usize) -> f64 {
     if n == 0 {
         return 0.0;
@@ -58,7 +58,7 @@ pub unsafe fn dot_product(n: usize, x: *const f64, incx: usize, y: *const f64, i
 #[cfg(target_arch = "aarch64")]
 #[inline]
 #[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc)]
-#[target_feature(enable = "neon")]
+#[target_feature(enable = "neon,fma")]
 pub unsafe fn dot_product(n: usize, x: *const f64, incx: usize, y: *const f64, incy: usize) -> f64 {
     if n == 0 {
         return 0.0;
@@ -103,7 +103,7 @@ pub unsafe fn dot_product(n: usize, x: *const f64, incx: usize, y: *const f64, i
 #[cfg(target_arch = "x86_64")]
 #[inline]
 #[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc)]
-#[target_feature(enable = "avx2")]
+#[target_feature(enable = "avx2,fma")]
 pub unsafe fn daxpy_update(n: usize, alpha: f64, x: *const f64, incx: usize, y: *mut f64, incy: usize) {
     if n == 0 || alpha == 0.0 {
         return;
@@ -136,7 +136,7 @@ pub unsafe fn daxpy_update(n: usize, alpha: f64, x: *const f64, incx: usize, y: 
 #[cfg(target_arch = "aarch64")]
 #[inline]
 #[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc)]
-#[target_feature(enable = "neon")]
+#[target_feature(enable = "neon,fma")]
 pub unsafe fn daxpy_update(n: usize, alpha: f64, x: *const f64, incx: usize, y: *mut f64, incy: usize) {
     if n == 0 || alpha == 0.0 {
         return;

@@ -241,7 +241,7 @@ pub unsafe fn gemm(
 #[cfg(target_arch = "x86_64")]
 #[inline]
 #[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc, clippy::too_many_arguments)]
-#[target_feature(enable = "avx2")]
+#[target_feature(enable = "avx2,fma")]
 pub unsafe fn add_8x4_kernel(
     k: usize,
     alpha: f64,
@@ -287,7 +287,7 @@ pub unsafe fn add_8x4_kernel(
 #[cfg(target_arch = "aarch64")]
 #[inline]
 #[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc, clippy::too_many_arguments)]
-#[target_feature(enable = "neon")]
+#[target_feature(enable = "neon,fma")]
 pub unsafe fn add_8x4_kernel(
     k: usize,
     alpha: f64,

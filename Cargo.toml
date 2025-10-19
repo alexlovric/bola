@@ -1,6 +1,6 @@
 [package]
 name = "bola"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "A lightweight native rust linear algebra library."
 authors = ["Aleksander Lovric <alexlovric@gmail.com>"]

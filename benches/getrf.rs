@@ -11,7 +11,7 @@ fn benchmark_getrf(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(15));
     group.sample_size(10);
 
-    let sizes = [4096];
+    let sizes = [1024, 2048, 4096];
 
     for &size in &sizes {
         let m = size;
@@ -21,7 +21,7 @@ fn benchmark_getrf(c: &mut Criterion) {
         let a: Vec<f64> = (0..m * n).map(|_| rng.random()).collect();
         let ipiv_template = vec![0; m.min(n)];
 
-        group.bench_with_input(BenchmarkId::new("Blast", size), &size, |b, &_size| {
+        group.bench_with_input(BenchmarkId::new("BOLA", size), &size, |b, &_size| {
             b.iter_batched(
                 || {
                     let a_copy = a.clone();
@@ -39,15 +39,13 @@ fn benchmark_getrf(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let a_copy = a.clone();
-                    let ipiv = vec![0; m.min(n)];
-                    let info = 0;
-                    (a_copy, ipiv, info)
+                    let ipiv = ipiv_template.clone();
+                    (a_copy, ipiv)
                 },
-                |(mut a_copy, mut ipiv, mut info)| {
+                |(mut a_copy, mut ipiv)| {
                     unsafe {
-                        lapack::dgetrf(m as i32, n as i32, &mut a_copy, lda as i32, &mut ipiv, &mut info);
+                        lapack::dgetrf(m as i32, n as i32, &mut a_copy, lda as i32, &mut ipiv, &mut 0);
                     }
-                    assert_eq!(info, 0);
                 },
                 criterion::BatchSize::LargeInput,
             );

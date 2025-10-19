@@ -65,9 +65,9 @@ The LU factorisation function is compared against Lapack. The average time in mi
 
 | Size | BOLA (ms) | Lapack (ms) |
 |------|------|--------|
-| 1024 | 6.7720 | 3.9243 |
-| 2048 | 30.617 | 23.097 |
-| 4096 | 186.47 | 129.05 |
+| 1024 | 6.7720 | 5.8331 |
+| 2048 | 29.677 | 32.966 |
+| 4096 | 186.47 | 132.73 |
 
 ## License
 MIT License - See [LICENSE](LICENSE) for details.
