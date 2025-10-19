@@ -24,7 +24,7 @@ pub unsafe fn scal_kernel(m: usize, inv_diag: f64, col: *mut f64) -> usize {
 #[cfg(target_arch = "aarch64")]
 #[inline]
 #[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc)]
-#[target_feature(enable = "neon,fma")]
+#[target_feature(enable = "neon")]
 pub unsafe fn scal_kernel(m: usize, inv_diag: f64, col: *mut f64) -> usize {
     let inv_diag_vec = vdupq_n_f64(inv_diag);
     let m_chunks = m / 2;
