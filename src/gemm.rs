@@ -154,12 +154,8 @@ pub unsafe fn gemm(
                         b.add(jc + pc * ldb)
                     };
 
-                    // {
-                    //     #[cfg(feature = "profiling")]
-                    //     let _timer = profiling::ScopedTimer::new("Pack B");
                     b_packed.resize(pb * nb, 0.0);
                     pack(transb, pb, nb, b_panel_ptr, ldb, b_packed.as_mut_ptr());
-                    // }
 
                     for ic in (0..m).step_by(MC) {
                         let mb = cmp::min(m - ic, MC);
@@ -170,16 +166,8 @@ pub unsafe fn gemm(
                             a.add(pc + ic * lda)
                         };
 
-                        // {
-                        //     #[cfg(feature = "profiling")]
-                        //     let _timer = profiling::ScopedTimer::new("Pack A");
                         a_packed.resize(mb * pb, 0.0);
                         pack(transa, mb, pb, a_panel_ptr, lda, a_packed.as_mut_ptr());
-                        // }
-
-                        // {
-                        //     #[cfg(feature = "profiling")]
-                        //     let _timer = profiling::ScopedTimer::new("GEMM Kern");
 
                         for j in (0..nb).step_by(NR) {
                             for i in (0..mb).step_by(MR) {
@@ -204,7 +192,6 @@ pub unsafe fn gemm(
                                 }
                             }
                         }
-                        // }
                     }
                 }
                 a_cell.set(a_packed);
@@ -391,7 +378,10 @@ pub unsafe fn add_scalar_kernel(
 
 #[cfg(test)]
 mod tests {
+    use crate::utilities::assert_approx_eq;
+
     use super::*;
+
     #[test]
     fn test_gemm_matrix_multiplication() {
         let m = 2;
@@ -425,17 +415,75 @@ mod tests {
             );
         }
 
-        assert_eq!(c.len(), c_expected.len(), "Slices have different lengths");
-        for (i, (val_a, val_b)) in c.iter().zip(c_expected.iter()).enumerate() {
-            assert!(
-                (val_a - val_b).abs() < 1e-8,
-                "Mismatch at index {}: evaluated[{}] = {}, expected[{}] = {}",
-                i,
-                i,
-                val_a,
-                i,
-                val_b
+        assert_approx_eq(&c, &c_expected, 1e-8);
+    }
+
+    #[test]
+    fn test_gemm_n_n() {
+        let m = 2;
+        let n = 2;
+        let k = 3;
+        let lda = 2;
+        let ldb = 3;
+        let ldc = 2;
+
+        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let b = vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0];
+        let mut c = vec![0.0; 4];
+        let c_expected = vec![76.0, 100.0, 103.0, 136.0];
+
+        unsafe {
+            gemm(
+                'N',
+                'N',
+                m,
+                n,
+                k,
+                1.0,
+                a.as_ptr(),
+                lda,
+                b.as_ptr(),
+                ldb,
+                0.0,
+                c.as_mut_ptr(),
+                ldc,
             );
         }
+        assert_approx_eq(&c, &c_expected, 1e-9);
+    }
+
+    #[test]
+    fn test_gemm_n_t() {
+        // Test C := A * B^T
+        let m = 2;
+        let n = 2;
+        let k = 3;
+        let lda = 2;
+        let ldb = 2;
+        let ldc = 2;
+
+        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let b = vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0];
+        let mut c = vec![0.0; 4];
+        let c_expected = vec![89.0, 116.0, 98.0, 128.0];
+
+        unsafe {
+            gemm(
+                'N',
+                'T',
+                m,
+                n,
+                k,
+                1.0,
+                a.as_ptr(),
+                lda,
+                b.as_ptr(),
+                ldb,
+                0.0,
+                c.as_mut_ptr(),
+                ldc,
+            );
+        }
+        assert_approx_eq(&c, &c_expected, 1e-9);
     }
 }

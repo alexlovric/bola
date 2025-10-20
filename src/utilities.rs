@@ -104,7 +104,7 @@ pub unsafe fn dot_product(n: usize, x: *const f64, incx: usize, y: *const f64, i
 #[inline]
 #[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc)]
 #[target_feature(enable = "avx2,fma")]
-pub unsafe fn daxpy_update(n: usize, alpha: f64, x: *const f64, incx: usize, y: *mut f64, incy: usize) {
+pub unsafe fn daxpy(n: usize, alpha: f64, x: *const f64, incx: usize, y: *mut f64, incy: usize) {
     if n == 0 || alpha == 0.0 {
         return;
     }
@@ -137,7 +137,7 @@ pub unsafe fn daxpy_update(n: usize, alpha: f64, x: *const f64, incx: usize, y: 
 #[inline]
 #[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc)]
 #[target_feature(enable = "neon")]
-pub unsafe fn daxpy_update(n: usize, alpha: f64, x: *const f64, incx: usize, y: *mut f64, incy: usize) {
+pub unsafe fn daxpy(n: usize, alpha: f64, x: *const f64, incx: usize, y: *mut f64, incy: usize) {
     if n == 0 || alpha == 0.0 {
         return;
     }
@@ -160,5 +160,20 @@ pub unsafe fn daxpy_update(n: usize, alpha: f64, x: *const f64, incx: usize, y: 
         for i in 0..n {
             *y.add(i * incy) += alpha * (*x.add(i * incx));
         }
+    }
+}
+
+pub fn assert_approx_eq(a: &[f64], b: &[f64], tol: f64) {
+    assert_eq!(a.len(), b.len(), "Slices have different lengths");
+    for (i, (val_a, val_b)) in a.iter().zip(b.iter()).enumerate() {
+        assert!(
+            (val_a - val_b).abs() < tol,
+            "Mismatch at index {}: a[{}] = {}, b[{}] = {}",
+            i,
+            i,
+            val_a,
+            i,
+            val_b
+        );
     }
 }

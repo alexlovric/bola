@@ -1,6 +1,6 @@
 use rayon::prelude::*;
 
-use crate::{gemm::gemm, utilities::daxpy_update};
+use crate::{gemm::gemm, utilities::daxpy};
 
 #[cfg(feature = "profiling")]
 use crate::profiling;
@@ -102,7 +102,7 @@ unsafe fn trsm_lnl(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b:
                     let b_kj_updated = if !unit { b_kj / *a.add(k + k * lda) } else { b_kj };
                     *b_col.add(k) = b_kj_updated;
                     if m > k + 1 {
-                        daxpy_update(m - k - 1, -b_kj_updated, a.add(k + 1 + k * lda), 1, b_col.add(k + 1), 1);
+                        daxpy(m - k - 1, -b_kj_updated, a.add(k + 1 + k * lda), 1, b_col.add(k + 1), 1);
                     }
                 }
             }
@@ -142,7 +142,7 @@ unsafe fn trsm_lnu(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b:
                     let b_kj_updated = if !unit { b_kj / *a.add(k + k * lda) } else { b_kj };
                     *b_col.add(k) = b_kj_updated;
                     if k > 0 {
-                        daxpy_update(k, -b_kj_updated, a.add(k * lda), 1, b_col, 1);
+                        daxpy(k, -b_kj_updated, a.add(k * lda), 1, b_col, 1);
                     }
                 }
             }
@@ -251,168 +251,180 @@ unsafe fn trsm_ltu(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b:
 #[allow(unsafe_op_in_unsafe_fn)]
 unsafe fn trsm_rnl(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b: *mut f64, ldb: usize) {
     if n <= TRSM_RECURSION_STOP {
-        let core_logic = |i: usize, a: *const f64, b: *mut f64| {
-            let b_row = b.add(i);
-            for j in 0..n {
-                let mut temp = *b_row.add(j * ldb);
-                for k in 0..j {
-                    temp -= *b_row.add(k * ldb) * *a.add(j + k * lda);
+        for j in (0..n).rev() {
+            let b_col_j = b.add(j * ldb);
+            
+            for k in (j + 1)..n {
+                let a_kj = *a.add(k + j * lda);
+                if a_kj != 0.0 {
+                    let b_col_k = b.add(k * ldb); // This is X_k
+                    for i in 0..m {
+                        *b_col_j.add(i) -= a_kj * *b_col_k.add(i);
+                    }
                 }
-                if !unit {
-                    temp /= *a.add(j + j * lda);
-                }
-                *b_row.add(j * ldb) = temp;
             }
-        };
-        if m > PARALLEL_THRESHOLD {
-            let a_addr = a as usize;
-            let b_addr = b as usize;
-            (0..m).into_par_iter().for_each(|i| {
-                let a = a_addr as *const f64;
-                let b = b_addr as *mut f64;
-                core_logic(i, a, b);
-            });
-        } else {
-            for i in 0..m {
-                core_logic(i, a, b);
+            
+            if !unit {
+                let a_jj_inv = 1.0 / *a.add(j + j * lda);
+                for i in 0..m {
+                    *b_col_j.add(i) *= a_jj_inv;
+                }
             }
         }
         return;
     }
-    let n1 = n / 2;
-    let n2 = n - n1;
-    trsm_rnl(unit, m, n1, a, lda, b, ldb);
-    gemm('N', 'N', m, n2, n1, -1.0, b, ldb, a.add(n1), lda, 1.0, b.add(n1 * ldb), ldb);
+    let n1 = n / 2; let n2 = n - n1;
     trsm_rnl(unit, m, n2, a.add(n1 + n1 * lda), lda, b.add(n1 * ldb), ldb);
+    gemm('N', 'N', m, n1, n2, -1.0, b.add(n1 * ldb), ldb, a.add(n1), lda, 1.0, b, ldb);
+    trsm_rnl(unit, m, n1, a, lda, b, ldb);
 }
 
 // Case: SIDE = 'R', TRANS = 'N', UPLO = 'U' (Solve X*U = B)
 #[allow(unsafe_op_in_unsafe_fn)]
 unsafe fn trsm_rnu(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b: *mut f64, ldb: usize) {
     if n <= TRSM_RECURSION_STOP {
-        let core_logic = |i: usize, a: *const f64, b: *mut f64| {
-            let b_row = b.add(i);
-            for j in (0..n).rev() {
-                let mut temp = *b_row.add(j * ldb);
-                for k in (j + 1)..n {
-                    temp -= *b_row.add(k * ldb) * *a.add(j + k * lda);
+        for j in 0..n {
+            let b_col_j = b.add(j * ldb);
+
+            for k in 0..j {
+                let a_kj = *a.add(k + j * lda);
+                if a_kj != 0.0 {
+                    let b_col_k = b.add(k * ldb); // This is X_k
+                    for i in 0..m {
+                        *b_col_j.add(i) -= a_kj * *b_col_k.add(i);
+                    }
                 }
-                if !unit {
-                    temp /= *a.add(j + j * lda);
-                }
-                *b_row.add(j * ldb) = temp;
             }
-        };
-        if m > PARALLEL_THRESHOLD {
-            let a_addr = a as usize;
-            let b_addr = b as usize;
-            (0..m).into_par_iter().for_each(|i| {
-                let a = a_addr as *const f64;
-                let b = b_addr as *mut f64;
-                core_logic(i, a, b);
-            });
-        } else {
-            for i in 0..m {
-                core_logic(i, a, b);
+            
+            if !unit {
+                let a_jj_inv = 1.0 / *a.add(j + j * lda);
+                for i in 0..m {
+                    *b_col_j.add(i) *= a_jj_inv;
+                }
             }
         }
         return;
     }
-    let n1 = n / 2;
-    let n2 = n - n1;
-    trsm_rnu(unit, m, n2, a.add(n1 + n1 * lda), lda, b.add(n1 * ldb), ldb);
-    gemm('N', 'N', m, n1, n2, -1.0, b.add(n1 * ldb), ldb, a.add(n1), lda, 1.0, b, ldb);
+    let n1 = n / 2; let n2 = n - n1;
     trsm_rnu(unit, m, n1, a, lda, b, ldb);
+    gemm('N', 'N', m, n2, n1, -1.0, b, ldb, a.add(n1 * lda), lda, 1.0, b.add(n1 * ldb), ldb);
+    trsm_rnu(unit, m, n2, a.add(n1 + n1 * lda), lda, b.add(n1 * ldb), ldb);
 }
 
 // Case: SIDE = 'R', TRANS = 'T', UPLO = 'L' (Solve X*L**T = B)
 #[allow(unsafe_op_in_unsafe_fn)]
 unsafe fn trsm_rtl(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b: *mut f64, ldb: usize) {
     if n <= TRSM_RECURSION_STOP {
-        let core_logic = |i: usize, a: *const f64, b: *mut f64| {
-            let b_row = b.add(i);
-            for j in (0..n).rev() {
-                let mut temp = *b_row.add(j * ldb);
-                for k in (j + 1)..n {
-                    temp -= *b_row.add(k * ldb) * *a.add(k + j * lda);
+        for j in 0..n {
+            let b_col_j = b.add(j * ldb);
+
+            for k in 0..j {
+                let a_jk = *a.add(j + k * lda);
+                if a_jk != 0.0 {
+                    let b_col_k = b.add(k * ldb); // This is X_k
+                    for i in 0..m {
+                        *b_col_j.add(i) -= a_jk * *b_col_k.add(i);
+                    }
                 }
-                if !unit {
-                    temp /= *a.add(j + j * lda);
-                }
-                *b_row.add(j * ldb) = temp;
             }
-        };
-        if m > PARALLEL_THRESHOLD {
-            let a_addr = a as usize;
-            let b_addr = b as usize;
-            (0..m).into_par_iter().for_each(|i| {
-                let a = a_addr as *const f64;
-                let b = b_addr as *mut f64;
-                core_logic(i, a, b);
-            });
-        } else {
-            for i in 0..m {
-                core_logic(i, a, b);
+
+            if !unit {
+                let a_jj_inv = 1.0 / *a.add(j + j * lda);
+                for i in 0..m {
+                    *b_col_j.add(i) *= a_jj_inv;
+                }
             }
         }
         return;
     }
-    let n1 = n / 2;
-    let n2 = n - n1;
-    trsm_rtl(unit, m, n2, a.add(n1 + n1 * lda), lda, b.add(n1 * ldb), ldb);
-    gemm(
-        'N',
-        'T',
-        m,
-        n1,
-        n2,
-        -1.0,
-        b.add(n1 * ldb),
-        ldb,
-        a.add(n1 * lda),
-        lda,
-        1.0,
-        b,
-        ldb,
-    );
+    let n1 = n / 2; let n2 = n - n1;
     trsm_rtl(unit, m, n1, a, lda, b, ldb);
+    gemm('N', 'T', m, n2, n1, -1.0, b, ldb, a.add(n1), lda, 1.0, b.add(n1 * ldb), ldb);
+    trsm_rtl(unit, m, n2, a.add(n1 + n1 * lda), lda, b.add(n1 * ldb), ldb);
 }
 
 // Case: SIDE = 'R', TRANS = 'T', UPLO = 'U' (Solve X*U**T = B)
 #[allow(unsafe_op_in_unsafe_fn)]
 unsafe fn trsm_rtu(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b: *mut f64, ldb: usize) {
     if n <= TRSM_RECURSION_STOP {
-        let core_logic = |i: usize, a: *const f64, b: *mut f64| {
-            let b_row = b.add(i);
-            for j in 0..n {
-                let mut temp = *b_row.add(j * ldb);
-                for k in 0..j {
-                    temp -= *b_row.add(k * ldb) * *a.add(k + j * lda);
+        for j in (0..n).rev() {
+            let b_col_j = b.add(j * ldb);
+            
+            for k in (j + 1)..n {
+                let a_jk = *a.add(j + k * lda);
+                if a_jk != 0.0 {
+                    let b_col_k = b.add(k * ldb); // This is X_k
+                    for i in 0..m {
+                        *b_col_j.add(i) -= a_jk * *b_col_k.add(i);
+                    }
                 }
-                if !unit {
-                    temp /= *a.add(j + j * lda);
-                }
-                *b_row.add(j * ldb) = temp;
             }
-        };
-        if m > PARALLEL_THRESHOLD {
-            let a_addr = a as usize;
-            let b_addr = b as usize;
-            (0..m).into_par_iter().for_each(|i| {
-                let a = a_addr as *const f64;
-                let b = b_addr as *mut f64;
-                core_logic(i, a, b);
-            });
-        } else {
-            for i in 0..m {
-                core_logic(i, a, b);
+            
+            if !unit {
+                let a_jj_inv = 1.0 / *a.add(j + j * lda);
+                for i in 0..m {
+                    *b_col_j.add(i) *= a_jj_inv;
+                }
             }
         }
         return;
     }
-    let n1 = n / 2;
-    let n2 = n - n1;
-    trsm_rtu(unit, m, n1, a, lda, b, ldb);
-    gemm('N', 'T', m, n2, n1, -1.0, b, ldb, a.add(n1), lda, 1.0, b.add(n1 * ldb), ldb);
+    let n1 = n / 2; let n2 = n - n1;
     trsm_rtu(unit, m, n2, a.add(n1 + n1 * lda), lda, b.add(n1 * ldb), ldb);
+    gemm('N', 'T', m, n1, n2, -1.0, b.add(n1*ldb), ldb, a.add(n1*lda), lda, 1.0, b, ldb);
+    trsm_rtu(unit, m, n1, a, lda, b, ldb);
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::utilities::assert_approx_eq;
+
+    use super::*;
+
+    #[test]
+    fn test_trsm_left_lower_no_transpose() {
+        let m = 3;
+        let n = 2;
+        let lda = 3;
+        let ldb = 3;
+        let a = vec![2.0, 4.0, 6.0, 0.0, 1.0, 5.0, 0.0, 0.0, 3.0];
+        let x_expected = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let mut b = vec![2.0, 6.0, 25.0, 8.0, 21.0, 67.0];
+        unsafe {
+            trsm('L', 'L', 'N', 'N', m, n, 1.0, a.as_ptr(), lda, b.as_mut_ptr(), ldb);
+        }
+        assert_approx_eq(&b, &x_expected, 1e-9);
+    }
+
+    #[test]
+    fn test_trsm_right_upper_transpose() {
+        let m = 2;
+        let n = 3;
+        let lda = 3;
+        let ldb = 2;
+        let a = vec![2.0, 0.0, 0.0, 4.0, 1.0, 0.0, 6.0, 5.0, 3.0]; // UPPER
+        let x_expected = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        // Correct B for X * A^T, where A is UPPER
+        let mut b = vec![44.0, 56.0, 28.0, 34.0, 15.0, 18.0];
+        unsafe {
+            trsm('R', 'U', 'T', 'N', m, n, 1.0, a.as_ptr(), lda, b.as_mut_ptr(), ldb);
+        }
+        assert_approx_eq(&b, &x_expected, 1e-9);
+    }
+
+    #[test]
+    fn test_trsm_right_lower_transpose() {
+        let m = 2;
+        let n = 3;
+        let lda = 3;
+        let ldb = 2;
+        let a = vec![2.0, 4.0, 6.0, 0.0, 1.0, 5.0, 0.0, 0.0, 3.0]; // LOWER
+        let x_expected = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        // Correct B for X * A^T, where A is LOWER
+        let mut b = vec![2.0, 4.0, 7.0, 12.0, 36.0, 50.0];
+        unsafe {
+            trsm('R', 'L', 'T', 'N', m, n, 1.0, a.as_ptr(), lda, b.as_mut_ptr(), ldb);
+        }
+        assert_approx_eq(&b, &x_expected, 1e-9);
+    }
 }

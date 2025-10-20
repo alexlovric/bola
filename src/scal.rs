@@ -39,9 +39,26 @@ pub unsafe fn scal_kernel(m: usize, inv_diag: f64, col: *mut f64) -> usize {
     m_chunks * 2
 }
 
+/// General-purpose SCAL operation: x = alpha * x
+#[inline]
+#[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc)]
+pub unsafe fn scal(n: usize, alpha: f64, x: *mut f64, incx: usize) {
+    if incx == 1 {
+        let processed = scal_kernel(n, alpha, x);
+        for i in processed..n {
+            *x.add(i) *= alpha;
+        }
+    } else {
+        // Scalar fallback for non-unit increments
+        for i in 0..n {
+            *x.add(i * incx) *= alpha;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::*; 
+    use super::*;
 
     #[test]
     fn test_scal_kernel_logic() {

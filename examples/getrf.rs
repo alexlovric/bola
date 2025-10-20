@@ -42,5 +42,8 @@ fn main() -> Result<(), String> {
 
     println!("\n");
 
+    #[cfg(feature = "profiling")]
+    profiling::print_profile(10.);
+    
     Ok(())
 }

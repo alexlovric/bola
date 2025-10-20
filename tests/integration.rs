@@ -1,24 +1,31 @@
 use bola::getrf::getrf;
 use bola::potrf::potrf;
+use bola::utilities::assert_approx_eq;
 
-/// A helper function to compare two slices of f64 for near equality.
-fn assert_approx_eq(a: &[f64], b: &[f64], tol: f64) {
-    assert_eq!(a.len(), b.len(), "Slices have different lengths");
-    for (i, (val_a, val_b)) in a.iter().zip(b.iter()).enumerate() {
-        assert!(
-            (val_a - val_b).abs() < tol,
-            "Mismatch at index {}: a[{}] = {}, b[{}] = {}",
-            i,
-            i,
-            val_a,
-            i,
-            val_b
-        );
+#[test]
+fn test_potrf_cholesky_factorisation_upper() {
+    let n = 3;
+    let lda = 3;
+    let mut a = vec![4.0, 12.0, -16.0, 12.0, 37.0, -43.0, -16.0, -43.0, 98.0];
+
+    let u_expected = vec![2.0, 0.0, 0.0, 6.0, 1.0, 0.0, -8.0, 5.0, 3.0];
+
+    unsafe {
+        potrf('U', n, a.as_mut_ptr(), lda).expect("potrf failed for UPLO='U'");
     }
+
+    let mut u_result = vec![0.0; n * n];
+    for j in 0..n {
+        for i in 0..=j {
+            u_result[i + j * lda] = a[i + j * lda];
+        }
+    }
+
+    assert_approx_eq(&u_result, &u_expected, 1e-9);
 }
 
 #[test]
-fn test_potrf_cholesky_factorisation() {
+fn test_potrf_cholesky_factorisation_lower() {
     let n = 3;
     let lda = 3;
     let mut a = vec![4.0, 12.0, -16.0, 12.0, 37.0, -43.0, -16.0, -43.0, 98.0];
@@ -26,7 +33,7 @@ fn test_potrf_cholesky_factorisation() {
     let l_expected = vec![2.0, 6.0, -8.0, 0.0, 1.0, 5.0, 0.0, 0.0, 3.0];
 
     unsafe {
-        potrf('L', n, a.as_mut_ptr(), lda).expect("potrf failed");
+        potrf('L', n, a.as_mut_ptr(), lda).expect("potrf failed for UPLO='L'");
     }
 
     let mut l_result = vec![0.0; 9];
