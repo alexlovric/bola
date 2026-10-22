@@ -64,8 +64,6 @@ pub fn reset_counters() {
 }
 
 /// Prints a formatted report of all functions that were called.
-/// The percentages are calculated relative to the total time of the specified top-level function.
-/// Prints a formatted report of all functions that were called.
 /// The function with the longest total duration is automatically used as the 100% baseline.
 pub fn print_profile(iterations: f64) {
     println!("\n--- Function Call Profiling (Average over {} iterations) ---", iterations);
@@ -114,7 +112,6 @@ pub fn print_profile(iterations: f64) {
     }
 }
 
-// The benchmark function remains unchanged as it serves a different purpose.
 pub fn benchmark<F, G>(name: &str, mut my_impl: F, mut lapack_impl: G, repetitions: usize)
 where
     F: FnMut() -> f64,

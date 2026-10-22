@@ -1,59 +1,48 @@
-// Requires openblas linking to run
+mod support;
 
 use bola::getrf::getrf;
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use rand::prelude::*;
-use std::time::Duration;
+use std::hint::black_box;
 
-#[allow(unused_must_use)]
 fn benchmark_getrf(c: &mut Criterion) {
     let mut group = c.benchmark_group("LU Decomposition");
-    group.measurement_time(Duration::from_secs(15));
-    group.sample_size(10);
+    let bola_label = support::bola_label();
 
-    let sizes = [1024, 2048, 4096];
-
-    for &size in &sizes {
-        let m = size;
-        let n = size;
-        let lda = m;
+    for size in support::matrix_sizes() {
         let mut rng = StdRng::seed_from_u64(1);
-        let a: Vec<f64> = (0..m * n).map(|_| rng.random()).collect();
-        let ipiv_template = vec![0; m.min(n)];
-
-        group.bench_with_input(BenchmarkId::new("BOLA", size), &size, |b, &_size| {
-            b.iter_batched(
-                || {
-                    let a_copy = a.clone();
-                    let ipiv = ipiv_template.clone();
-                    (a_copy, ipiv)
-                },
-                |(mut a_copy, mut ipiv)| {
-                    unsafe { getrf(m, n, &mut a_copy, lda, &mut ipiv) };
-                },
-                criterion::BatchSize::LargeInput,
-            );
+        let a: Vec<f64> = (0..size * size).map(|_| rng.random()).collect();
+        let setup = || (a.clone(), vec![0; size]);
+        let run_bola = |(work, pivots): &mut (Vec<f64>, Vec<i32>)| unsafe {
+            getrf(size, size, work, size, pivots).expect("BOLA factorization failed");
+            black_box((work, pivots));
+        };
+        let mut check = setup();
+        run_bola(&mut check);
+        support::assert_lu_residual(&a, &check.0, &check.1, size);
+        drop(check);
+        group.bench_with_input(BenchmarkId::new(&bola_label, size), &size, |bencher, _| {
+            bencher.iter_batched_ref(setup, run_bola, criterion::BatchSize::LargeInput);
         });
-
-        group.bench_with_input(BenchmarkId::new("Lapack", size), &size, |b, &_size| {
-            b.iter_batched(
-                || {
-                    let a_copy = a.clone();
-                    let ipiv = ipiv_template.clone();
-                    (a_copy, ipiv)
-                },
-                |(mut a_copy, mut ipiv)| {
-                    unsafe {
-                        lapack::dgetrf(m as i32, n as i32, &mut a_copy, lda as i32, &mut ipiv, &mut 0);
-                    }
-                },
-                criterion::BatchSize::LargeInput,
-            );
-        });
+        #[cfg(feature = "external-blas")]
+        {
+            let run_lapack = |(work, pivots): &mut (Vec<f64>, Vec<i32>)| unsafe {
+                let mut info = 0;
+                lapack::dgetrf(size as i32, size as i32, work, size as i32, pivots, &mut info);
+                assert_eq!(info, 0, "LAPACK factorization failed");
+                black_box((work, pivots));
+            };
+            let mut check = setup();
+            run_lapack(&mut check);
+            support::assert_lu_residual(&a, &check.0, &check.1, size);
+            drop(check);
+            group.bench_with_input(BenchmarkId::new("Lapack", size), &size, |bencher, _| {
+                bencher.iter_batched_ref(setup, run_lapack, criterion::BatchSize::LargeInput);
+            });
+        }
     }
-
     group.finish();
 }
 
-criterion_group!(benches, benchmark_getrf);
+criterion_group! { name = benches; config = support::config(); targets = benchmark_getrf }
 criterion_main!(benches);

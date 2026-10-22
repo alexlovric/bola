@@ -30,7 +30,7 @@ const RECURSION_STOP_SIZE: usize = 32;
 ///   columns in memory and must be at least `max(1, m)`.
 /// * `ipiv` - A mutable slice that will be filled with the pivot indices. Its length
 ///   must be at least `min(m, n)`. For each `i` from 0 to `min(m,n)-1`,
-///   row `i` was interchanged with row `ipiv[i]`.
+///   row `i` was interchanged with row `ipiv[i] - 1` (pivots are 1-based).
 ///
 /// # Returns
 /// * `Ok(())` - If the factorization completed successfully.
@@ -46,6 +46,9 @@ pub unsafe fn getrf2(m: usize, n: usize, a: *mut f64, lda: usize, ipiv: &mut [i3
     if m == 0 || n == 0 {
         return Ok(());
     }
+    if ipiv.len() < m.min(n) || m > i32::MAX as usize {
+        return Err("Pivot storage is too short or row indices exceed i32::MAX".into());
+    }
 
     if m <= RECURSION_STOP_SIZE || n <= RECURSION_STOP_SIZE {
         return iterative_getrf2(m, n, a, lda, ipiv);
@@ -58,7 +61,7 @@ pub unsafe fn getrf2(m: usize, n: usize, a: *mut f64, lda: usize, ipiv: &mut [i3
 
     laswp(
         n2,
-        slice::from_raw_parts_mut(a.add(n1 * lda), (n - n1) * lda),
+        slice::from_raw_parts_mut(a.add(n1 * lda), (n2 - 1) * lda + m),
         lda,
         1,
         n1 as i32,
@@ -94,7 +97,7 @@ pub unsafe fn getrf2(m: usize, n: usize, a: *mut f64, lda: usize, ipiv: &mut [i3
 
     laswp(
         n1,
-        slice::from_raw_parts_mut(a, n1 * lda),
+        slice::from_raw_parts_mut(a, (n1 - 1) * lda + m),
         lda,
         (n1 + 1) as i32,
         cmp::min(m, n) as i32,
@@ -132,35 +135,41 @@ unsafe fn iterative_getrf2(m: usize, n: usize, a: *mut f64, lda: usize, ipiv: &m
     #[cfg(feature = "profiling")]
     let _timer = profiling::ScopedTimer::new("GETRF2_IT");
 
-    let a_slice = slice::from_raw_parts_mut(a, n * lda);
     let min_mn = m.min(n);
 
-    for j in 0..min_mn {
+    for (j, pivot) in ipiv.iter_mut().take(min_mn).enumerate() {
         let jp = j + idamax(m - j, a.add(j + j * lda));
 
-        ipiv[j] = (jp + 1) as i32;
+        *pivot = (jp + 1) as i32;
 
-        if a_slice[jp + j * lda] != 0.0 {
+        if *a.add(jp + j * lda) != 0.0 {
             if jp != j {
                 #[cfg(feature = "profiling")]
                 let _timer = profiling::ScopedTimer::new("SWAP");
                 for k in 0..n {
-                    a_slice.swap(j + k * lda, jp + k * lda);
+                    std::ptr::swap(a.add(j + k * lda), a.add(jp + k * lda));
                 }
             }
             if j < m - 1 {
                 #[cfg(feature = "profiling")]
                 let _timer = profiling::ScopedTimer::new("SCAL");
 
-                let ajj = a_slice[j + j * lda];
-                let inv_ajj = 1.0 / ajj;
+                let ajj = *a.add(j + j * lda);
                 let m_rem = m - (j + 1);
                 let col_ptr = a.add(j + 1 + j * lda);
 
-                let processed = scal_kernel(m_rem, inv_ajj, col_ptr);
-
-                for i in processed..m_rem {
-                    *a_slice.get_unchecked_mut(j + 1 + i + j * lda) *= inv_ajj;
+                if ajj.abs() >= f64::MIN_POSITIVE {
+                    let inv_ajj = 1.0 / ajj;
+                    let processed = scal_kernel(m_rem, inv_ajj, col_ptr);
+                    for i in processed..m_rem {
+                        *col_ptr.add(i) *= inv_ajj;
+                    }
+                } else {
+                    // The reciprocal of a subnormal pivot can overflow even
+                    // though partial pivoting keeps these quotients <= 1.
+                    for i in 0..m_rem {
+                        *col_ptr.add(i) /= ajj;
+                    }
                 }
             }
         } else {

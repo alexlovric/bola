@@ -3,6 +3,9 @@ use std::cell::Cell;
 use std::cmp;
 
 #[cfg(target_arch = "x86_64")]
+mod packed;
+
+#[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
 #[cfg(target_arch = "aarch64")]
@@ -20,7 +23,8 @@ const NC: usize = 16;
 const MR: usize = 8;
 const NR: usize = 4;
 
-const PARALLEL_THRESHOLD: usize = 128;
+// Amortize Rayon scheduling using the arithmetic work per worker.
+const MIN_WORK_PER_THREAD: usize = 32 * 32 * 32;
 
 // Thread-Local Buffers
 thread_local! {
@@ -47,7 +51,7 @@ thread_local! {
 #[inline(always)]
 #[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc)]
 pub unsafe fn pack(trans: char, rows: usize, cols: usize, src: *const f64, ld_src: usize, dst: *mut f64) {
-    if trans == 'N' {
+    if trans.eq_ignore_ascii_case(&'N') {
         // Pack the panel without transposing (column-major to column-major).
         for j in 0..cols {
             for i in 0..rows {
@@ -84,6 +88,11 @@ pub unsafe fn pack(trans: char, rows: usize, cols: usize, src: *const f64, ld_sr
 /// * `beta`   - The scalar multiplier for matrix C.
 /// * `c`      - A pointer to the first element of matrix C.
 /// * `ldc`    - The leading dimension of matrix C.
+///
+/// # Safety
+/// Pointers must describe valid column-major matrices with the stated dimensions
+/// and leading dimensions, including the dimensions before transposition. C must
+/// be writable and must not overlap A or B. On x86-64, AVX2 and FMA are required.
 #[allow(unsafe_op_in_unsafe_fn, clippy::too_many_arguments, clippy::missing_safety_doc)]
 pub unsafe fn gemm(
     transa: char,
@@ -107,6 +116,22 @@ pub unsafe fn gemm(
         return;
     }
 
+    let notransa = transa.eq_ignore_ascii_case(&'N');
+    let notransb = transb.eq_ignore_ascii_case(&'N');
+    let work = m.saturating_mul(n).saturating_mul(k);
+    let threads = if alpha != 0.0 && work >= 2 * MIN_WORK_PER_THREAD {
+        rayon::current_num_threads()
+    } else {
+        1
+    };
+    // Shared panels amortize their barriers on large products. Short K panels
+    // retain the original path, as used by blocked LU and TRSM.
+    #[cfg(target_arch = "x86_64")]
+    if alpha != 0.0 && m >= 128 && n >= 128 && k >= 64 && work >= 256 * 256 * 64 && packed::enough_tiles(m, n, threads) {
+        packed::multiply(notransa, notransb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, threads);
+        return;
+    }
+
     if beta == 0.0 {
         for j in 0..n {
             for i in 0..m {
@@ -121,20 +146,34 @@ pub unsafe fn gemm(
         }
     }
 
-    if alpha == 0.0 {
+    if alpha == 0.0 || k == 0 {
         return;
     }
-
-    let notransa = transa.eq_ignore_ascii_case(&'N');
-    let notransb = transb.eq_ignore_ascii_case(&'N');
 
     // Cast to pass
     let a_addr = a as usize;
     let b_addr = b as usize;
     let c_addr = c as usize;
 
-    // The core logic for processing blocks.
-    let core_logic = |jc: usize| {
+    let normal_product = notransa && notransb;
+    // Gathering transposed panels is more expensive; keep column-only
+    // scheduling for those products rather than repacking for each row band.
+    let parallel = threads > 1 && work >= threads.saturating_mul(MIN_WORK_PER_THREAD) && (normal_product || n > 128);
+    let column_blocks = n.div_ceil(NC);
+    // Split rows as well when there are too few column panels to occupy the pool.
+    let row_bands = if parallel && normal_product {
+        (2 * threads).div_ceil(column_blocks).min(m.div_ceil(MC))
+    } else {
+        1
+    };
+    let rows_per_band = m.div_ceil(row_bands).next_multiple_of(MC);
+    let tasks = column_blocks * m.div_ceil(rows_per_band);
+
+    // Each task owns a disjoint rectangular region of C.
+    let core_logic = |task: usize| {
+        let jc = (task % column_blocks) * NC;
+        let row_start = (task / column_blocks) * rows_per_band;
+        let row_end = (row_start + rows_per_band).min(m);
         let nb = cmp::min(n - jc, NC);
         let a = a_addr as *const f64;
         let b = b_addr as *const f64;
@@ -157,8 +196,8 @@ pub unsafe fn gemm(
                     b_packed.resize(pb * nb, 0.0);
                     pack(transb, pb, nb, b_panel_ptr, ldb, b_packed.as_mut_ptr());
 
-                    for ic in (0..m).step_by(MC) {
-                        let mb = cmp::min(m - ic, MC);
+                    for ic in (row_start..row_end).step_by(MC) {
+                        let mb = cmp::min(row_end - ic, MC);
 
                         let a_panel_ptr = if notransa {
                             a.add(ic + pc * lda)
@@ -201,11 +240,11 @@ pub unsafe fn gemm(
     };
 
     // Conditional Parallelism
-    if n > PARALLEL_THRESHOLD {
-        (0..n).into_par_iter().step_by(NC).for_each(core_logic);
+    if parallel {
+        (0..tasks).into_par_iter().for_each(core_logic);
     } else {
-        for jc in (0..n).step_by(NC) {
-            core_logic(jc);
+        for task in 0..tasks {
+            core_logic(task);
         }
     }
 }
@@ -427,8 +466,8 @@ mod tests {
         let ldb = 3;
         let ldc = 2;
 
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-        let b = vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0];
+        let a = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let b = [7.0, 8.0, 9.0, 10.0, 11.0, 12.0];
         let mut c = vec![0.0; 4];
         let c_expected = vec![76.0, 100.0, 103.0, 136.0];
 
@@ -462,8 +501,8 @@ mod tests {
         let ldb = 2;
         let ldc = 2;
 
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-        let b = vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0];
+        let a = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let b = [7.0, 8.0, 9.0, 10.0, 11.0, 12.0];
         let mut c = vec![0.0; 4];
         let c_expected = vec![89.0, 116.0, 98.0, 128.0];
 

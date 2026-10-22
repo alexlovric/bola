@@ -88,15 +88,33 @@ pub unsafe fn idamax(n: usize, x: *const f64) -> usize {
         idxs3 = _mm256_add_pd(idxs3, step_vec);
     }
 
-    let mask1 = _mm256_cmp_pd(max_vals_vec1, max_vals_vec0, _CMP_GT_OQ);
+    let mask1 = _mm256_or_pd(
+        _mm256_cmp_pd(max_vals_vec1, max_vals_vec0, _CMP_GT_OQ),
+        _mm256_and_pd(
+            _mm256_cmp_pd(max_vals_vec1, max_vals_vec0, _CMP_EQ_OQ),
+            _mm256_cmp_pd(max_idxs_vec1, max_idxs_vec0, _CMP_LT_OQ),
+        ),
+    );
     max_vals_vec0 = _mm256_blendv_pd(max_vals_vec0, max_vals_vec1, mask1);
     max_idxs_vec0 = _mm256_blendv_pd(max_idxs_vec0, max_idxs_vec1, mask1);
 
-    let mask2 = _mm256_cmp_pd(max_vals_vec2, max_vals_vec0, _CMP_GT_OQ);
+    let mask2 = _mm256_or_pd(
+        _mm256_cmp_pd(max_vals_vec2, max_vals_vec0, _CMP_GT_OQ),
+        _mm256_and_pd(
+            _mm256_cmp_pd(max_vals_vec2, max_vals_vec0, _CMP_EQ_OQ),
+            _mm256_cmp_pd(max_idxs_vec2, max_idxs_vec0, _CMP_LT_OQ),
+        ),
+    );
     max_vals_vec0 = _mm256_blendv_pd(max_vals_vec0, max_vals_vec2, mask2);
     max_idxs_vec0 = _mm256_blendv_pd(max_idxs_vec0, max_idxs_vec2, mask2);
 
-    let mask3 = _mm256_cmp_pd(max_vals_vec3, max_vals_vec0, _CMP_GT_OQ);
+    let mask3 = _mm256_or_pd(
+        _mm256_cmp_pd(max_vals_vec3, max_vals_vec0, _CMP_GT_OQ),
+        _mm256_and_pd(
+            _mm256_cmp_pd(max_vals_vec3, max_vals_vec0, _CMP_EQ_OQ),
+            _mm256_cmp_pd(max_idxs_vec3, max_idxs_vec0, _CMP_LT_OQ),
+        ),
+    );
     max_vals_vec0 = _mm256_blendv_pd(max_vals_vec0, max_vals_vec3, mask3);
     max_idxs_vec0 = _mm256_blendv_pd(max_idxs_vec0, max_idxs_vec3, mask3);
 
@@ -108,15 +126,15 @@ pub unsafe fn idamax(n: usize, x: *const f64) -> usize {
     let mut max_val = max_vals_arr[0];
     let mut max_idx = max_idxs_arr[0] as usize;
 
-    if max_vals_arr[1] > max_val {
+    if max_vals_arr[1] > max_val || (max_vals_arr[1] == max_val && (max_idxs_arr[1] as usize) < max_idx) {
         max_val = max_vals_arr[1];
         max_idx = max_idxs_arr[1] as usize;
     }
-    if max_vals_arr[2] > max_val {
+    if max_vals_arr[2] > max_val || (max_vals_arr[2] == max_val && (max_idxs_arr[2] as usize) < max_idx) {
         max_val = max_vals_arr[2];
         max_idx = max_idxs_arr[2] as usize;
     }
-    if max_vals_arr[3] > max_val {
+    if max_vals_arr[3] > max_val || (max_vals_arr[3] == max_val && (max_idxs_arr[3] as usize) < max_idx) {
         max_val = max_vals_arr[3];
         max_idx = max_idxs_arr[3] as usize;
     }
@@ -204,15 +222,33 @@ pub unsafe fn idamax(n: usize, x: *const f64) -> usize {
         idxs3 = vaddq_f64(idxs3, step_vec);
     }
 
-    let mask1 = vcgtq_f64(max_vals_vec1, max_vals_vec0);
+    let mask1 = vorrq_u64(
+        vcgtq_f64(max_vals_vec1, max_vals_vec0),
+        vandq_u64(
+            vceqq_f64(max_vals_vec1, max_vals_vec0),
+            vcltq_f64(max_idxs_vec1, max_idxs_vec0),
+        ),
+    );
     max_vals_vec0 = vbslq_f64(mask1, max_vals_vec1, max_vals_vec0);
     max_idxs_vec0 = vbslq_f64(mask1, max_idxs_vec1, max_idxs_vec0);
 
-    let mask2 = vcgtq_f64(max_vals_vec2, max_vals_vec0);
+    let mask2 = vorrq_u64(
+        vcgtq_f64(max_vals_vec2, max_vals_vec0),
+        vandq_u64(
+            vceqq_f64(max_vals_vec2, max_vals_vec0),
+            vcltq_f64(max_idxs_vec2, max_idxs_vec0),
+        ),
+    );
     max_vals_vec0 = vbslq_f64(mask2, max_vals_vec2, max_vals_vec0);
     max_idxs_vec0 = vbslq_f64(mask2, max_idxs_vec2, max_idxs_vec0);
 
-    let mask3 = vcgtq_f64(max_vals_vec3, max_vals_vec0);
+    let mask3 = vorrq_u64(
+        vcgtq_f64(max_vals_vec3, max_vals_vec0),
+        vandq_u64(
+            vceqq_f64(max_vals_vec3, max_vals_vec0),
+            vcltq_f64(max_idxs_vec3, max_idxs_vec0),
+        ),
+    );
     max_vals_vec0 = vbslq_f64(mask3, max_vals_vec3, max_vals_vec0);
     max_idxs_vec0 = vbslq_f64(mask3, max_idxs_vec3, max_idxs_vec0);
 
@@ -223,7 +259,7 @@ pub unsafe fn idamax(n: usize, x: *const f64) -> usize {
 
     let mut max_val = max_vals_arr[0];
     let mut max_idx = max_idxs_arr[0] as usize;
-    if max_vals_arr[1] > max_val {
+    if max_vals_arr[1] > max_val || (max_vals_arr[1] == max_val && (max_idxs_arr[1] as usize) < max_idx) {
         max_val = max_vals_arr[1];
         max_idx = max_idxs_arr[1] as usize;
     }

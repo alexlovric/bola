@@ -16,22 +16,18 @@ name = "bola"
 path = "src/lib.rs"
 
 [dependencies]
-rayon = "1.11.0"
-
+rayon = "1.12.0"
 
 [dev-dependencies]
-criterion = "0.7.0"
-matrixmultiply = { version = "0.3.10", features = ["threading"] }
-rand = "0.9.2"
+criterion = "0.8.2"
+matrixmultiply = { version = "0.3.11", features = ["threading"] }
+rand = "0.10.3"
 cblas = "0.5.0"
 lapack = "0.20.0"
-lapack-sys = "0.15.0"
-
-# [build-dependencies]
-# openblas-src = { version = "0.10.12", features = ["cblas", "static"] }
 
 [features]
 profiling = []
+external-blas = []
 
 [[bench]]
 name = "getrf"
@@ -40,7 +36,4 @@ harness = false
 [[bench]]
 name = "gemm"
 harness = false
-
-[[bench]]
-name = "workflow_dep"
-harness = false
+required-features = ["external-blas"]
