@@ -28,7 +28,7 @@ const NB: usize = 32;
 ///   columns in memory and must be at least `max(1, m)`.
 /// * `ipiv` - A mutable slice that will be filled with the pivot indices. Its length
 ///   must be at least `min(m, n)`. For each `i` from 0 to `min(m,n)-1`,
-///   row `i` was interchanged with row `ipiv[i]`.
+///   row `i` was interchanged with row `ipiv[i] - 1` (pivots are 1-based).
 ///  
 /// # Returns
 /// * `Ok(())` - If the factorization completed successfully.
@@ -46,6 +46,13 @@ pub unsafe fn getrf(m: usize, n: usize, a: &mut [f64], lda: usize, ipiv: &mut [i
     }
 
     let min_mn = m.min(n);
+    let required_len = (n - 1).checked_mul(lda).and_then(|offset| offset.checked_add(m));
+    if required_len.is_none_or(|len| a.len() < len) {
+        return Err("Matrix storage is too short for the requested dimensions".into());
+    }
+    if ipiv.len() < min_mn || m > i32::MAX as usize {
+        return Err("Pivot storage is too short or row indices exceed i32::MAX".into());
+    }
 
     if NB <= 1 || NB >= min_mn {
         getrf2(m, n, a.as_mut_ptr(), lda, ipiv)?;

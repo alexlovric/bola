@@ -1,10 +1,10 @@
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use rand::{rngs::StdRng, RngExt, SeedableRng};
 use std::time::Instant;
 
 use bola::getrf::getrf;
 
 #[cfg(feature = "profiling")]
-use bola::profiling::{self, benchmark};
+use bola::profiling;
 
 fn main() -> Result<(), String> {
     // Set the matrix size
@@ -44,6 +44,6 @@ fn main() -> Result<(), String> {
 
     #[cfg(feature = "profiling")]
     profiling::print_profile(10.);
-    
+
     Ok(())
 }

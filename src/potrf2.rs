@@ -4,7 +4,7 @@ use crate::trsm::trsm;
 #[cfg(feature = "profiling")]
 use crate::profiling;
 
-/// Computes the Cholesky factorisation of a symmetric, positive-definite matrix (unblocked version).
+/// Computes the Cholesky factorisation of a symmetric, positive-definite matrix recursively.
 /// - If `uplo` = 'U', then $A = U^T U$, where `U` is an upper triangular matrix.
 /// - If `uplo` = 'L', then $A = L L^T$, where `L` is a lower triangular matrix.
 ///
@@ -20,20 +20,51 @@ use crate::profiling;
 ///
 /// # Returns
 /// * `Ok(())` - If the factorization completed successfully.
-/// * `Err(String)`
-#[allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc)]
+/// * `Err(String)` - An invalid argument or the one-based column where a
+///   non-positive or NaN pivot was encountered in the original matrix.
+///
+/// # Safety
+/// For `n > 0`, `a` must point to a writable allocation covering at least
+/// `(n - 1) * lda + n` elements. The selected triangle must be initialized,
+/// and the matrix must not be accessed concurrently during the call.
+/// On x86-64, the processor must support AVX2 and FMA.
+#[allow(unsafe_op_in_unsafe_fn)]
 pub unsafe fn potrf2(uplo: char, n: usize, a: *mut f64, lda: usize) -> Result<(), String> {
+    let uplo = uplo.to_ascii_uppercase();
+    if uplo != 'U' && uplo != 'L' {
+        return Err("Argument 1 to potrf2 had an illegal value".to_string());
+    }
+    if lda < n.max(1) {
+        return Err("Argument 4 to potrf2 had an illegal value".to_string());
+    }
+
+    potrf2_with_offset(uplo, n, a, lda, 0)
+}
+
+// POTRF and POTRF2 validate arguments before entering this shared block kernel.
+// Keep failure positions numeric until the offset into the original matrix is added.
+#[allow(unsafe_op_in_unsafe_fn)]
+pub(crate) unsafe fn potrf2_with_offset(
+    uplo: char,
+    n: usize,
+    a: *mut f64,
+    lda: usize,
+    column_offset: usize,
+) -> Result<(), String> {
     #[cfg(feature = "profiling")]
     let _timer = profiling::ScopedTimer::new("POTRF2");
 
     match potrf2_recursive(uplo, n, a, lda) {
         Ok(()) => Ok(()),
-        Err(info) => Err(format!("Matrix is not positive-definite. Failure at column {}.", info)),
+        Err(info) => Err(format!(
+            "Matrix is not positive-definite. Failure at column {}.",
+            column_offset + info
+        )),
     }
 }
 
 #[allow(unsafe_op_in_unsafe_fn)]
-unsafe fn potrf2_recursive(uplo: char, n: usize, a: *mut f64, lda: usize) -> Result<(), i32> {
+unsafe fn potrf2_recursive(uplo: char, n: usize, a: *mut f64, lda: usize) -> Result<(), usize> {
     if n == 0 {
         return Ok(());
     }
@@ -61,7 +92,7 @@ unsafe fn potrf2_recursive(uplo: char, n: usize, a: *mut f64, lda: usize) -> Res
             syrk('U', 'T', n2, n1, -1.0, a12, lda, 1.0, a22, lda);
 
             if let Err(info) = potrf2_recursive(uplo, n2, a22, lda) {
-                return Err(info + n1 as i32);
+                return Err(info + n1);
             }
         } else {
             let a11 = a;
@@ -72,7 +103,7 @@ unsafe fn potrf2_recursive(uplo: char, n: usize, a: *mut f64, lda: usize) -> Res
             syrk('L', 'N', n2, n1, -1.0, a21, lda, 1.0, a22, lda);
 
             if let Err(info) = potrf2_recursive(uplo, n2, a22, lda) {
-                return Err(info + n1 as i32);
+                return Err(info + n1);
             }
         }
         Ok(())

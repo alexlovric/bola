@@ -50,6 +50,15 @@ pub unsafe fn trsm(
         return;
     }
 
+    if alpha == 0.0 {
+        for j in 0..n {
+            for i in 0..m {
+                *b.add(i + j * ldb) = 0.0;
+            }
+        }
+        return;
+    }
+
     // Scale B by alpha if necessary.
     if alpha != 1.0 {
         for j in 0..n {
@@ -253,7 +262,7 @@ unsafe fn trsm_rnl(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b:
     if n <= TRSM_RECURSION_STOP {
         for j in (0..n).rev() {
             let b_col_j = b.add(j * ldb);
-            
+
             for k in (j + 1)..n {
                 let a_kj = *a.add(k + j * lda);
                 if a_kj != 0.0 {
@@ -263,7 +272,7 @@ unsafe fn trsm_rnl(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b:
                     }
                 }
             }
-            
+
             if !unit {
                 let a_jj_inv = 1.0 / *a.add(j + j * lda);
                 for i in 0..m {
@@ -273,7 +282,8 @@ unsafe fn trsm_rnl(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b:
         }
         return;
     }
-    let n1 = n / 2; let n2 = n - n1;
+    let n1 = n / 2;
+    let n2 = n - n1;
     trsm_rnl(unit, m, n2, a.add(n1 + n1 * lda), lda, b.add(n1 * ldb), ldb);
     gemm('N', 'N', m, n1, n2, -1.0, b.add(n1 * ldb), ldb, a.add(n1), lda, 1.0, b, ldb);
     trsm_rnl(unit, m, n1, a, lda, b, ldb);
@@ -295,7 +305,7 @@ unsafe fn trsm_rnu(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b:
                     }
                 }
             }
-            
+
             if !unit {
                 let a_jj_inv = 1.0 / *a.add(j + j * lda);
                 for i in 0..m {
@@ -305,9 +315,24 @@ unsafe fn trsm_rnu(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b:
         }
         return;
     }
-    let n1 = n / 2; let n2 = n - n1;
+    let n1 = n / 2;
+    let n2 = n - n1;
     trsm_rnu(unit, m, n1, a, lda, b, ldb);
-    gemm('N', 'N', m, n2, n1, -1.0, b, ldb, a.add(n1 * lda), lda, 1.0, b.add(n1 * ldb), ldb);
+    gemm(
+        'N',
+        'N',
+        m,
+        n2,
+        n1,
+        -1.0,
+        b,
+        ldb,
+        a.add(n1 * lda),
+        lda,
+        1.0,
+        b.add(n1 * ldb),
+        ldb,
+    );
     trsm_rnu(unit, m, n2, a.add(n1 + n1 * lda), lda, b.add(n1 * ldb), ldb);
 }
 
@@ -337,7 +362,8 @@ unsafe fn trsm_rtl(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b:
         }
         return;
     }
-    let n1 = n / 2; let n2 = n - n1;
+    let n1 = n / 2;
+    let n2 = n - n1;
     trsm_rtl(unit, m, n1, a, lda, b, ldb);
     gemm('N', 'T', m, n2, n1, -1.0, b, ldb, a.add(n1), lda, 1.0, b.add(n1 * ldb), ldb);
     trsm_rtl(unit, m, n2, a.add(n1 + n1 * lda), lda, b.add(n1 * ldb), ldb);
@@ -349,7 +375,7 @@ unsafe fn trsm_rtu(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b:
     if n <= TRSM_RECURSION_STOP {
         for j in (0..n).rev() {
             let b_col_j = b.add(j * ldb);
-            
+
             for k in (j + 1)..n {
                 let a_jk = *a.add(j + k * lda);
                 if a_jk != 0.0 {
@@ -359,7 +385,7 @@ unsafe fn trsm_rtu(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b:
                     }
                 }
             }
-            
+
             if !unit {
                 let a_jj_inv = 1.0 / *a.add(j + j * lda);
                 for i in 0..m {
@@ -369,9 +395,24 @@ unsafe fn trsm_rtu(unit: bool, m: usize, n: usize, a: *const f64, lda: usize, b:
         }
         return;
     }
-    let n1 = n / 2; let n2 = n - n1;
+    let n1 = n / 2;
+    let n2 = n - n1;
     trsm_rtu(unit, m, n2, a.add(n1 + n1 * lda), lda, b.add(n1 * ldb), ldb);
-    gemm('N', 'T', m, n1, n2, -1.0, b.add(n1*ldb), ldb, a.add(n1*lda), lda, 1.0, b, ldb);
+    gemm(
+        'N',
+        'T',
+        m,
+        n1,
+        n2,
+        -1.0,
+        b.add(n1 * ldb),
+        ldb,
+        a.add(n1 * lda),
+        lda,
+        1.0,
+        b,
+        ldb,
+    );
     trsm_rtu(unit, m, n1, a, lda, b, ldb);
 }
 
