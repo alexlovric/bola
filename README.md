@@ -82,8 +82,16 @@ fn main() {
 
 Measured on the Linux machine above on **2026-10-22**, after updating the Rust
 toolchain and dependencies. The comparisons use Rust/Cargo **1.99.1**,
-Criterion **0.8.2**, matrixmultiply **0.3.11**, OpenBLAS **0.3.34**, and LAPACK
-built from the **v3.12.1 source tag** with OpenBLAS supplying its BLAS operations.
+Criterion **0.8.2** and matrixmultiply **0.3.11**.
+
+The external numerical backends used for the recorded results are:
+
+- **GEMM:** OpenBLAS **0.3.34**, built for **HASWELL** with GCC/GFortran
+  **16.2.1**, **pthreads**, a twenty-thread limit and automatic CPU affinity
+  disabled.
+- **LU:** **Reference LAPACK**, built separately from its **v3.12.1 source
+  tag** and linked to that same OpenBLAS build for its BLAS operations. The LU
+  tables label this combination **Reference LAPACK + OpenBLAS**.
 
 Values are Criterion **mean times**, with lower values better. Each case uses
 ten samples, a one-second warmup and a three-second measurement target, extended
@@ -158,7 +166,7 @@ their own measurements.
 
 Times in **microseconds**. Size is the order of a square matrix.
 
-| Threads | Size | BOLA | LAPACK + OpenBLAS |
+| Threads | Size | BOLA | Reference LAPACK + OpenBLAS |
 |---|---|---:|---:|
 | 4 | 32 | 1.989 | 4.994 |
 | 4 | 64 | 11.947 | 16.869 |
@@ -175,7 +183,7 @@ Times in **microseconds**. Size is the order of a square matrix.
 
 Times in **milliseconds**.
 
-| Threads | Size | BOLA | LAPACK + OpenBLAS |
+| Threads | Size | BOLA | Reference LAPACK + OpenBLAS |
 |---|---|---:|---:|
 | 4 | 1024 | 6.900 | 7.550 |
 | 4 | 2048 | 38.953 | 42.142 |
